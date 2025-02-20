@@ -9,7 +9,7 @@ from rich.progress import Progress
 from rich.live import Live
 import time
 from utils import ProjectConsole, load_project_configuration
-from processing import load_csv_to_sqlite
+from processing import load_csv_to_sqlite, initialize_anonymous_table
 
 # Load environment variables
 load_dotenv()
@@ -33,6 +33,23 @@ def create_header():
 
     return header_panel
 
+def report_task_result(console, task_name, success, record_count=None):
+    """
+    Standardized method to report task results.
+    
+    Args:
+        console (Console): Rich console for output
+        task_name (str): Name of the task
+        success (bool): Whether the task was successful
+        record_count (int, optional): Number of records processed
+    """
+    if success:
+        console.print(f"[green]✓[/green] {task_name} successful")
+        if record_count is not None:
+            console.print(f"[cyan]→[/cyan] Total records: {record_count}")
+    else:
+        console.print(f"[red]✗[/red] Failed to {task_name}")
+
 def main():
     # Clear the screen at the start
     clear_screen()
@@ -45,23 +62,26 @@ def main():
     
     console = Console()
     
-    # Execute task with progress tracking
+    # Execute tasks with progress tracking
     with Progress(console=console) as progress:
-        task = progress.add_task("Loading ISEAR dataset...", total=None)
-        
-        # Load the CSV file
-        result = load_csv_to_sqlite(
+        # Task 1: Load CSV to SQLite
+        task1 = progress.add_task("Loading ISEAR dataset...", total=None)
+        success1, record_count1 = load_csv_to_sqlite(
             os.path.join(os.path.dirname(__file__), 'data', 'ISEAR.csv')
         )
+        progress.update(task1, completed=True)
+        
+        # Task 2: Initialize Anonymous Table
+        task2 = progress.add_task("Creating anonymous table...", total=None)
+        success2, record_count2 = initialize_anonymous_table()
+        progress.update(task2, completed=True)
         
         # Stop the progress display
         progress.stop()
         
-        # Show the result
-        if result:
-            console.print("[green]✓[/green] CSV successfully imported to SQLite database")
-        else:
-            console.print("[red]✗[/red] Failed to import CSV to SQLite database")
+        # Report results
+        report_task_result(console, "CSV import to SQLite", success1, record_count1)
+        report_task_result(console, "Anonymous table creation", success2, record_count2)
 
 if __name__ == "__main__":
     main()
