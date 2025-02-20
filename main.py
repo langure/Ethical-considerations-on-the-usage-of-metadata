@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
@@ -8,9 +9,14 @@ from rich.progress import Progress
 from rich.live import Live
 import time
 from utils import ProjectConsole, load_project_configuration
+from processing import load_csv_to_sqlite
 
 # Load environment variables
 load_dotenv()
+
+def clear_screen():
+    """Clear the terminal screen."""
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def create_header():
     """Create a sticky header with project information."""
@@ -27,45 +33,35 @@ def create_header():
 
     return header_panel
 
-def example_task1():
-    """Example task to demonstrate progress tracking."""
-    time.sleep(0.5)
-
-def example_task2():
-    """Another example task."""
-    time.sleep(0.5)
-
 def main():
+    # Clear the screen at the start
+    clear_screen()
+    
     # Initialize the project console
     project_console = ProjectConsole()
     
     # Display the project header
     project_console.display_header()
     
-    # Print project topic
-    project_console.print_info(f"Project Topic: {project_console.project_metadata['topic']}")
+    console = Console()
     
-    # Define and execute tasks
-    tasks = [
-        {
-            'name': '[blue]Performing initial setup...[/blue]',
-            'function': example_task1
-        },
-        {
-            'name': '[cyan]Loading data...[/cyan]',
-            'function': example_task2
-        },
-        {
-            'name': '[magenta]Preparing analysis...[/magenta]',
-            'function': None  # No function for this task
-        }
-    ]
-    
-    # Run tasks with progress tracking
-    project_console.progress_tasks(tasks)
-    
-    # Print success message
-    project_console.print_success("Setup complete!")
+    # Execute task with progress tracking
+    with Progress(console=console) as progress:
+        task = progress.add_task("Loading ISEAR dataset...", total=None)
+        
+        # Load the CSV file
+        result = load_csv_to_sqlite(
+            os.path.join(os.path.dirname(__file__), 'data', 'ISEAR.csv')
+        )
+        
+        # Stop the progress display
+        progress.stop()
+        
+        # Show the result
+        if result:
+            console.print("[green]✓[/green] CSV successfully imported to SQLite database")
+        else:
+            console.print("[red]✗[/red] Failed to import CSV to SQLite database")
 
 if __name__ == "__main__":
     main()
