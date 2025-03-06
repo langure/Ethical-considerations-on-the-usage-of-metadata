@@ -9,7 +9,7 @@ from rich.progress import Progress
 from rich.live import Live
 import time
 from utils import ProjectConsole, load_project_configuration
-from processing import load_csv_to_sqlite, initialize_anonymous_table
+from processing import load_csv_to_sqlite, initialize_anonymous_table, calculate_anonymity_index
 
 # Load environment variables
 load_dotenv()
@@ -76,12 +76,28 @@ def main():
         success2, record_count2 = initialize_anonymous_table()
         progress.update(task2, completed=True)
         
+        # Task 3: Calculate Anonymity Index
+        task3 = progress.add_task("Calculating anonymity index...", total=None)
+        # Define columns to consider for anonymity calculation
+        identifying_columns = ['age', 'gender', 'nationality']
+        anonymity_index = calculate_anonymity_index(
+            sqlite_filename='isear.db', 
+            table_name='isear_anonymous', 
+            identifying_columns=identifying_columns
+        )
+        progress.update(task3, completed=True)
+        
         # Stop the progress display
         progress.stop()
         
         # Report results
         report_task_result(console, "CSV import to SQLite", success1, record_count1)
         report_task_result(console, "Anonymous table creation", success2, record_count2)
+        
+        # Special handling for anonymity index
+        console.print(f"\n[magenta]Anonymity Index Analysis[/magenta]")
+        console.print(f"[cyan]→[/cyan] Columns Analyzed: {', '.join(identifying_columns)}")
+        console.print(f"[green]✓[/green] Anonymity Index: {anonymity_index:.4f}")
 
 if __name__ == "__main__":
     main()

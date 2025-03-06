@@ -2,6 +2,7 @@ import os
 import csv
 import sqlite3
 from rich.console import Console
+import pandas as pd
 
 console = Console()
 
@@ -139,3 +140,64 @@ def initialize_anonymous_table(sqlite_filename: str = 'isear.db'):
     finally:
         if 'conn' in locals():
             conn.close()
+
+def calculate_anonymity_index(sqlite_filename: str, table_name: str, identifying_columns: list) -> float:
+    """
+    Calculate the anonymity index for a given table.
+    
+    Args:
+        sqlite_filename (str): Name of the SQLite database file
+        table_name (str): Name of the table to analyze
+        identifying_columns (list): List of column names to consider for anonymity
+    
+    Returns:
+        float: Anonymity index (0-1 scale)
+    """
+    console.print(f"[blue]Starting anonymity index calculation for {table_name}...[/blue]")
+    
+    try:
+        # Connect to the SQLite database
+        conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), 'data', sqlite_filename))
+        
+        # Read the table into a pandas DataFrame
+        query = f"SELECT {', '.join(identifying_columns)} FROM {table_name}"
+        df = pd.read_sql_query(query, conn)
+        
+        # Close the connection
+        conn.close()
+        
+        # Total number of rows
+        total_rows = len(df)
+        
+        # Count unique combinations of identifying columns
+        unique_combinations = len(df.drop_duplicates(subset=identifying_columns))
+        
+        # Calculate anonymity index
+        anonymity_index = 1 - (unique_combinations / total_rows)
+        
+        # Categorize anonymity level
+        def categorize_anonymity(index):
+            if index < 0.2:
+                return "Very Low"
+            elif index < 0.4:
+                return "Low"
+            elif index < 0.6:
+                return "Moderate"
+            elif index < 0.8:
+                return "High"
+            else:
+                return "Very High"
+        
+        # Print detailed results
+        console.print(f"[cyan]→[/cyan] Total Rows: {total_rows}")
+        console.print(f"[cyan]→[/cyan] Unique Combinations: {unique_combinations}")
+        console.print(f"[green]✓[/green] Anonymity Index: {anonymity_index:.4f}")
+        console.print(f"[magenta]→[/magenta] Anonymity Level: {categorize_anonymity(anonymity_index)}")
+        
+        console.print(f"[blue]Anonymity index calculation for {table_name} ... done.[/blue]")
+        
+        return anonymity_index
+    
+    except Exception as e:
+        console.print(f"[bold red]Error calculating anonymity index: {e}[/bold red]")
+        return 0.0  # Return lowest possible anonymity in case of error
